@@ -1,9 +1,8 @@
 '''
-Created on 2017/11/20
+Created on 2017/12/20
 
-@author: Jumpei
+@author: annan
 '''
-
 import numpy as np
 import numpy.random as rd
 import math
@@ -12,30 +11,27 @@ import matplotlib.pylab as plt
 import time
 
 
-
 start=time.time()
 
 def SNMaking(NodeNum,Kmin,Gamma):
-    #Config model 次数がべき乗に従うランダムSN生成
+    #Config model
     P=[0]
     i=0
     N=0
     Narray=[0]
     pm=1.0
-　　#次数の発生確率を決定
     for i in range(Kmin,NodeNum):
         N+=math.exp(-math.log(i)*Gamma)
     for i in range(Kmin,NodeNum):
         if i==Kmin:
-            P[0]=math.exp(-math.log(Kmin)*Gamma)/N #次数の最低値(任意)の時の発生確率
+            P[0]=math.exp(-math.log(Kmin)*Gamma)/N
         else:
-            p=P[i-Kmin-1]+math.exp(-math.log(i)*Gamma)/N #次数の発生確率をべき乗分布で
+            p=P[i-Kmin-1]+math.exp(-math.log(i)*Gamma)/N
             P.append(p)
     #print 'P(k)',P
-    
+
     K0=range(Kmin,NodeNum)
     K=range(Kmin-1,NodeNum)
-    #ノードごとに次数を決定
     for i in range(0,NodeNum):
         random=rd.rand()
         for s in range(Kmin-1,len(P)):
@@ -46,9 +42,9 @@ def SNMaking(NodeNum,Kmin,Gamma):
     K[Kmin-1]+=2
     KSum=sum(K)
     Krem=range(Kmin-1,NodeNum)
-    #総次数が偶数になるように設定
     for i in range(0,NodeNum):
-        Krem[i]=K[i]   
+        Krem[i]=K[i]
+
     if KSum % 2 ==1:
         Krem[NodeNum-1]=Krem[NodeNum-1]+1
         K[NodeNum-1]=K[NodeNum-1]+1
@@ -60,7 +56,6 @@ def SNMaking(NodeNum,Kmin,Gamma):
     E=range(0,KSum)
     M=0
     LinkConnect=[]
-    #各ノードの繋がっていない腕を捜してリンクをつなぐ
     while KSum>0 and t<tmax:
         Kmax=0
         for i in range(0,NodeNum):
@@ -91,7 +86,7 @@ def SNMaking(NodeNum,Kmin,Gamma):
             LinkConnect.append([vs,ve])
         t+=1
     #print LinkConnect
-    #リンク接続行列を隣接行列に変換する   
+
     #Adjacent Matrix
     AdjacentMatrix=np.zeros((NodeNum,NodeNum))
     for i in range(0,M):
@@ -101,13 +96,10 @@ def SNMaking(NodeNum,Kmin,Gamma):
     #print AdjacentMatrix
     #print 'K',K
     return AdjacentMatrix,K
-    
-    
+
 def AlgebraicConnectivity(AdjacentMatrix,NodeNum):
-    #代数的連結度(SN形状の指標)を求める
     AdjacentMatrix=np.array(AdjacentMatrix)
     d=[]
-    #次数対角行列
     for j in range(NodeNum):
         onenumber=AdjacentMatrix[:,j]
         onenumber=list(onenumber)
@@ -117,10 +109,10 @@ def AlgebraicConnectivity(AdjacentMatrix,NodeNum):
         d.append(lendiag)
     Diagonal=np.diag(d)
     #print Diagonal
-    #ラプラシアン
+
     Lapracian=Diagonal-AdjacentMatrix
     #print Lapracian
-    #ラプラシアンの０を除く最小固有値・固有ベクトル
+
     EigenValue, EigenVector = np.linalg.eig(Lapracian)
     EigenValue=list(EigenValue)
     EigenValue.sort()
@@ -129,98 +121,161 @@ def AlgebraicConnectivity(AdjacentMatrix,NodeNum):
     o=0
     Value=[]
     for o in range(0,lenght):
-        EigenValue2=round(EigenValue[o],10) 
+        EigenValue2=round(EigenValue[o],10)
         Value.append(EigenValue2)
     EigenValue3=filter((lambda x: x > 0.00000000000), Value)
     AlgebraicConnectivity=EigenValue3[0]
     print "Algebraic Connectivity=", AlgebraicConnectivity
     return AlgebraicConnectivity
 
+def HubNode(AdjacentMatrix,K,HubNum):
+    #ランダムSNのうち次数の高い上位HubNum数ノードをHubNodeリストにいれる
+    HubNode=[]
+    K=np.array(K)
+    Ksort=K.argsort()[::-1]
+    for i in range(0,HubNum):
+        HubNode.append(Ksort[i])
+    #print 'HubNode',HubNode
+    return HubNode
+
+
 def SubjectiveTravelTimeInitial(NodeNum,RoadNum,Observer,ObsMean,ObsSigma,UnobsMean,UnobsSigma,UnobsMeanMean,UnobsMeanSigma):
-    #行列初期化
-    Observe=np.zeros((RoadNum,NodeNum))#観測1,未観測0
-    Mean=np.zeros((RoadNum,NodeNum))#主観的旅行時間分布の平均値
-    Sigma=np.zeros((RoadNum,NodeNum))#主観的旅行時間分布の分散
-    MeanMean=np.zeros((RoadNum,NodeNum))#平均値分布の平均値
-    MeanSigma=np.zeros((RoadNum,NodeNum))#平均値分布の分散
+    Observe=np.zeros((RoadNum,NodeNum))
+    Mean=np.zeros((RoadNum,NodeNum))
+    Sigma=np.zeros((RoadNum,NodeNum))
+    MeanMean=np.zeros((RoadNum,NodeNum))
+    MeanSigma=np.zeros((RoadNum,NodeNum))
     for i in range(len(Observer)):
         o=Observer[i]
         Observe[0,o]=1
     for i in range(NodeNum):
         if Observe[0,i]==1:
-            #観測リンクに対して
             Mean[0,i]=ObsMean
             Sigma[0,i]=ObsSigma
             MeanMean[0,i]=ObsMeanMean
             MeanSigma[0,i]=ObsMeanSigma
         else:
-            #未観測リンクに対して
             Mean[0,i]=UnobsMean
             Sigma[0,i]=UnobsSigma
             MeanMean[0,i]=UnobsMeanMean
             MeanSigma[0,i]=UnobsMeanSigma
     #print 'Observe',Observe
-    #print Mean
-    #print Sigma
+    #print "Mean",MeanMean
+    #print "Sigma",MeanSigma
+    perRMSE0=[]
+    for t in range(NodeNum):
+        rmse0=(RealTravelTime-float(Mean[0,t]))**2
+        perRMSE0.append(rmse0)
+    RMSE0=sum(perRMSE0)/len(perRMSE0)
+    print 'RMSE0',RMSE0
     return Observe,Mean,Sigma,MeanMean,MeanSigma
 
 def SubjectiveTravelTimeUpdate(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma):
-    #更新後行列の初期化
-    NewMean=np.zeros((RoadNum,NodeNum))
-    NewSigma=np.zeros((RoadNum,NodeNum))
-    NewMeanMean=np.zeros((RoadNum,NodeNum))
-    NewMeanSigma=np.zeros((RoadNum,NodeNum))
+　　#ケース２では使わない
+    NewMean=Mean
+    NewSigma=Sigma
+    NewMeanMean=MeanMean
+    NewMeanSigma=MeanSigma
     for i in range(0,StepNum):
         for n in range(0,NodeNum):
             adjacentmatrix=AdjacentMatrix[:,n].tolist()
-            #SNで繋がった他者からの情報の平均を求める
             Muj=AdjacentMatrix[:,n]*MeanMean[0]
             Muj=Muj.tolist()
             C=Muj.count(0)
             for s in range(C):
                 Muj.remove(0)
             AveMuj=sum(Muj)/len(Muj)
-            #各行列の更新式
             NewMeanMean[0,n]=(OthersSigma/K[n])/(OthersSigma/(K[n])+MeanSigma[0,n])*MeanMean[0,n]+MeanSigma[0,n]/(OthersSigma/(K[n])+MeanSigma[0,n])*AveMuj
             NewMeanSigma[0,n]=((OthersSigma/K[n])*MeanSigma[0,n])/((OthersSigma/K[n])+MeanSigma[0,n])
             NewMean[0,n]=NewMeanMean[0,n]
             NewSigma[0,n]=NewMeanSigma[0,n]+OthersSigma
-        #各行列を更新
         Mean=NewMean
         Sigma=NewSigma
         MeanMean=NewMeanMean
         MeanSigma=NewMeanSigma
-        #print "Mean",Mean
-        #print "Sigma",Sigma
-        #情報のばらつきの指標として平均二乗誤差を求める
+        print "Mean",Mean
+        print "Sigma",Sigma
         perRMSE=[]
         for t in range(NodeNum):
             rmse=(RealTravelTime-float(Mean[0,t]))**2
             perRMSE.append(rmse)
         RMSE=sum(perRMSE)/len(perRMSE)
-    print 'RMSE',RMSE
-        
+        print 'RMSE',RMSE
 
-if __name__=='__main__':        
-    ##SN(ネットワーク設定)
-    NodeNum=44000
+def SubjectiveTravelTimeUpdateHub(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma,HubsSigma):
+    #ケース２で使用
+    NewMean=Mean
+    NewSigma=Sigma
+    NewMeanMean=MeanMean
+    NewMeanSigma=MeanSigma
+    for i in range(0,StepNum):
+        #ハブノードからの情報についての更新をHubSigmaを使って行う（式は一緒）
+        for n in range(0,NodeNum):
+            hubnode=[]
+            for t in HubNode:
+                if AdjacentMatrix[n,t]==1:
+                    hubnode.append(NewMeanMean[0,t])
+            if len(hubnode)>0:
+                AveHubMuj=sum(hubnode)/len(hubnode)
+                NewMeanMean[0,n]=(HubsSigma/len(hubnode))/(HubsSigma/len(hubnode)+MeanSigma[0,n])*MeanMean[0,n]+MeanSigma[0,n]/(HubsSigma/(len(hubnode))+MeanSigma[0,n])*AveHubMuj
+                NewMeanSigma[0,n]=((HubsSigma/len(hubnode))*MeanSigma[0,n])/((HubsSigma/len(hubnode))+MeanSigma[0,n])
+                NewMean[0,n]=NewMeanMean[0,n]
+                NewSigma[0,n]=NewMeanSigma[0,n]+HubsSigma
+        Mean=NewMean
+        Sigma=NewSigma
+        MeanMean=NewMeanMean
+        MeanSigma=NewMeanSigma
+        #ハブノード以外からの情報について更新（ケース１と同じ）
+        for n in range(0,NodeNum):
+            meanout=range(NodeNum)
+            for p in range(len(HubNode)):
+                h=int(HubNode[p])
+                meanout.pop(h-p)
+            Muj=[]
+            for t in meanout:
+                if AdjacentMatrix[n,t]==1:
+                    Muj.append(MeanMean[0,t])
+            if len(Muj)>0:
+                AveMuj=sum(Muj)/len(Muj)
+                NewMeanMean[0,n]=(OthersSigma/len(Muj))/(OthersSigma/len(Muj)+MeanSigma[0,n])*MeanMean[0,n]+MeanSigma[0,n]/(OthersSigma/(len(Muj))+MeanSigma[0,n])*AveMuj
+                NewMeanSigma[0,n]=((OthersSigma/len(Muj))*MeanSigma[0,n])/((OthersSigma/len(Muj))+MeanSigma[0,n])
+                NewMean[0,n]=NewMeanMean[0,n]
+                NewSigma[0,n]=NewMeanSigma[0,n]+OthersSigma
+                Mean=NewMean
+        Sigma=NewSigma
+        MeanMean=NewMeanMean
+        MeanSigma=NewMeanSigma
+        perRMSE=[]
+        for t in range(NodeNum):
+            rmse=(RealTravelTime-float(Mean[0,t]))**2
+            perRMSE.append(rmse)
+        RMSE=sum(perRMSE)/len(perRMSE)
+        print 'RMSE',RMSE
+        #print "Mean",Mean
+        #print "Sigma",Sigma
+
+if __name__=='__main__':
+    ##SN
+    NodeNum=100
     Kmin=1
     Gamma=3
-    
+    HubNum=5  #Case2
+
     AdjacentMatrix,K=SNMaking(NodeNum,Kmin,Gamma)
     timeSN=time.time()
-    
+
     AlgebraicConnectivity=AlgebraicConnectivity(AdjacentMatrix,NodeNum)
     timeAC=time.time()
-    
+
+    HubNode=HubNode(AdjacentMatrix,K,HubNum)  #Case2
     timehub=time.time()
-    
-    
+
+
     ##RN
     RoadNum=1
-    Observer=[0,1,2,3,4,5]
-    
-    StepNum=1000
+    Observer=[0]
+
+    StepNum=1
     ##Subjective Travel Time Distribution
     RealTravelTime=30.0
     ObsMean=RealTravelTime
@@ -233,24 +288,24 @@ if __name__=='__main__':
     UnobsMeanSigma=5.0
     OthersSigma=1.0
     HubsSigma=0.1
-    
+
     Observe,Mean,Sigma,MeanMean,MeanSigma=SubjectiveTravelTimeInitial(NodeNum,RoadNum,Observer,ObsMean,ObsSigma,UnobsMean,UnobsSigma,UnobsMeanMean,UnobsMeanSigma)
     timeini=time.time()
-    
-    SubjectiveTravelTimeUpdate(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma)
+
+    #SubjectiveTravelTimeUpdate(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma) #Case1,3
     timeup=time.time()
-    
-    
-    #SubjectiveTravelTimeUpdateHub(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma,HubsSigma) #Case2
-    #timeuphub=time.time()
-    
-    
+
+
+    SubjectiveTravelTimeUpdateHub(K,NodeNum,AdjacentMatrix,HubNode,StepNum,RealTravelTime,Observe,Mean,Sigma,MeanMean,MeanSigma,OthersSigma,HubsSigma) #Case2
+    timeuphub=time.time()
+
+
     end=time.time()
-    
+    print '########'
     print 'SN', timeSN-start
     print 'AC',timeAC-timeSN
     print 'Hub',timehub-timeAC
     print 'ini',timeini-timehub
     print 'up',timeup-timeini
-    #print 'uphub',timeuphub-timeup
+    print 'uphub',timeuphub-timeup
     print 'finish', end-start
